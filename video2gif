@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# AUTHOR: Donny (c) 2018
+# NAME: Video2gif 0.1
+# DESCRIPTION:  A shell script to convert video to gif.
+# DEPENDENCIES:   ffmpeg
+
 TMPPALETTE="/tmp/.~tmp-video2gif-palette.png"
 DEFSCALE="-1:-1"
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# AUTHOR: Donny 2018
-# NAME: ScreenRecord 0.1
-# DESCRIPTION:  A script to record screen.
-# DEPENDENCIES:   ffmpeg,notify-send
+# AUTHOR: Donny (c) 2018
+# NAME: ScreenRecord 0.1.1
+# DESCRIPTION:  A shell script for recording screen under linux.
+# DEPENDENCIES:   ffmpeg, notify-send (optional)
 
 # App name, display when pushing notification
 APPNAME="ScreenRecord"
@@ -50,26 +50,28 @@ print_info() {
 }
 
 print_usage() {
+    PRINT_FORMAT="%-25s%s\n"
+
     echo "Usage: $(basename $0) [OPTIONS]"
     
     echo ""
     echo "Help options:"
-    echo "-h|--help""\t""Print help options"
+    printf $PRINT_FORMAT "-h|--help"    "Print help options"
 
     echo ""
     echo "Record options:"
-    echo "-o|--output filename""\t""set the output filename"
-    echo "-d|--duration number""\t""record \"number\" seconds of video/gif"
-    echo "--delay number""\t""delay \"number\" seconds before recording"
-    echo "-f|--framerate number""\t""set the recording frame rate"
-    echo "-s|scale widthxheight""\t""scale the recording output to widthxheight"
-    echo "--gif""\t""output gif"
-    echo "--video""\t""output video; by default a video will be produced if neither --gif nor --video option is given"
+    printf $PRINT_FORMAT "-o|--output filename"     "set the output filename"
+    printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/gif"
+    printf $PRINT_FORMAT "--delay number"           "delay \"number\" seconds before recording"
+    printf $PRINT_FORMAT "-f|--framerate number"    "set the recording frame rate"
+    printf $PRINT_FORMAT "-s|scale widthxheight"    "scale the recording output to widthxheight"
+    printf $PRINT_FORMAT "--gif"                    "output gif"
+    printf $PRINT_FORMAT "--video"                  "output video; by default a video will be produced if neither --gif nor --video option is given"
 
     echo ""
     echo "Behavior options:"
-    echo "--noui""\t""suppress ui output, which means not using notify-send"
-    echo "--preview""\t""preview the parameters only, not doing actual recording"
+    printf $PRINT_FORMAT "--noui"       "suppress ui output, which means not using notify-send"
+    printf $PRINT_FORMAT "--preview"    "preview the parameters only, not doing actual recording"
 
     echo ""
     return
