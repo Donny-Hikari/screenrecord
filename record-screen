@@ -1,0 +1,246 @@
+#!/bin/bash
+
+# AUTHOR: Donny 2018
+# NAME: ScreenRecord 0.1
+# DESCRIPTION:  A script to record screen.
+# DEPENDENCIES:   ffmpeg,notify-send
+
+# App name, display when pushing notification
+APPNAME="ScreenRecord"
+# Video2gif script location
+video2gif="bash $(dirname $(readlink -f $0))/video2gif"
+
+ERR_NONE=0
+ERR_UNRECOGNIZED_PARAMETERS=1
+ERR_MISSING_PARAMETERS=2
+ERR_OPERATION_FAILED=3
+
+HELP_HINT="Try -h or --help to get help infomation."
+
+# Whether to display ui notification or not
+UINOTIFY=1
+# Delay before starting
+DELAY=3
+# Recording duration - infinite until user press 'q'
+DURATION=0
+# Recording frame rate
+FRAMERATE=30
+# Recording scale
+SCALE=-1:-1
+# Time and date
+TIME=$(date +"%Y-%m-%d_%H-%M-%S")
+# Default output filename
+DEFNAME=ScreenRecord_$TIME.mp4
+# Output filename
+OUTPUTNAME=$HOME/Pictures/$DEFNAME
+# Whether to output video file or not.
+# If both $OUTPUTVIDEO and $OUTPUTGIF are zeros, a video will be outputed by default.
+OUTPUTVIDEO=0
+# Whether to output gif file or not
+OUTPUTGIF=0
+# Preview the settings only. Not doing actual recording
+PREVIEWONLY=0
+
+print_info() {
+    echo ""
+    echo "ScreenRecord - Record screen to video or gif file"
+    echo "Author: Donny (c) 2018"
+    echo "Version: 0.1.1"
+    echo ""
+}
+
+print_usage() {
+    echo "Usage: $(basename $0) [OPTIONS]"
+    
+    echo ""
+    echo "Help options:"
+    echo "-h|--help""\t""Print help options"
+
+    echo ""
+    echo "Record options:"
+    echo "-o|--output filename""\t""set the output filename"
+    echo "-d|--duration number""\t""record \"number\" seconds of video/gif"
+    echo "--delay number""\t""delay \"number\" seconds before recording"
+    echo "-f|--framerate number""\t""set the recording frame rate"
+    echo "-s|scale widthxheight""\t""scale the recording output to widthxheight"
+    echo "--gif""\t""output gif"
+    echo "--video""\t""output video; by default a video will be produced if neither --gif nor --video option is given"
+
+    echo ""
+    echo "Behavior options:"
+    echo "--noui""\t""suppress ui output, which means not using notify-send"
+    echo "--preview""\t""preview the parameters only, not doing actual recording"
+
+    echo ""
+    return
+}
+
+print_variables() {
+    echo "UINOTIFY: $UINOTIFY"
+    echo "DELAY: $DELAY"
+    echo "DURATION: $DURATION"
+    echo "FRAMERATE: $FRAMERATE"
+    echo "SCALE: $SCALE"
+    echo "OUTPUTNAME: \"$OUTPUTNAME\""
+    echo "OUTPUTGIF: $OUTPUTGIF"
+    echo "OUTPUTVIDEO: $OUTPUTVIDEO"
+}
+
+# Sound notification to let one know when recording is about to start (and ends)
+beep() {
+    paplay /usr/share/sounds/freedesktop/stereo/message-new-instant.oga &
+}
+
+# Text notification in both console and ui notification.
+notify() {
+    msg=$1; echo $msg;
+    if [[ $UINOTIFY -eq 1 ]]; then
+        notify-send $APPNAME "$msg"
+    fi
+}
+
+print_info
+
+# Translate arguments
+ALLARGUMENTS=()
+while [[ $# -gt 0 ]]
+do
+    key=$1; ALLARGUMENTS+=($1); shift;
+    case $key in
+        -o|--output)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "Output filename missing."
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            OUTPUTNAME=$next
+            # If not filename given, use the $DEFNAME
+            filename=${OUTPUTNAME##*/}
+            if [[ -z $filename ]]; then
+                OUTPUTNAME=${OUTPUTNAME}${DEFNAME}
+            fi
+        fi
+        ;;
+        -d|--duration)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ $next -gt 0 ]]; then
+            DURATION=$next
+        fi
+        ;;
+        --delay)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ $next -ge 0 ]]; then
+            DELAY=$next
+        fi
+        ;;
+        -f|--framerate)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ $next -gt 0 ]]; then
+            FRAMERATE=$next
+        fi
+        ;;
+        -s|--scale)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "Scale parameter missing."
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            SCALE=$next
+        fi
+        ;;
+        --gif)
+        OUTPUTGIF=1
+        ;;
+        --video)
+        OUTPUTVIDEO=1
+        ;;
+        --noui)
+        UINOTIFY=0
+        ;;
+        --preview)
+        PREVIEWONLY=1
+        ;;
+        -h|--help)
+        print_usage
+        exit $ERR_NONE
+        ;;
+        *)
+        echo "Unrecognized parameter: $key."
+        echo $HELP_HINT        
+        exit $ERR_UNRECOGNIZED_PARAMETERS
+        ;;
+    esac
+done
+set -- "${ALLARGUMENTS[@]}" # restore arguments
+
+fileext=${OUTPUTNAME##*.}; if [[ "$fileext" == $OUTPUTNAME ]]; then fileext=""; fi
+if [[ -z $fileext ]]; then
+    if [[ $OUTPUTGIF -eq 1 ]] && [[ $OUTPUTVIDEO -eq 0 ]]; then
+        OUTPUTNAME+=".gif"
+    else
+        OUTPUTNAME+=".mp4"
+        OUTPUTVIDEO=1 # Output video by default
+    fi
+elif [[ "$fileext" == "gif" ]]; then
+    OUTPUTGIF=1
+    if [[ $OUTPUTVIDEO -eq 1 ]]; then
+        OUTPUTNAME=${OUTPUTNAME%.*}.mp4
+    fi
+else
+    OUTPUTVIDEO=1 # Output video by default
+fi
+# End translate arguments
+
+if [[ $PREVIEWONLY -eq 1 ]]; then
+    print_variables
+    exit $ERR_NONE
+fi
+
+if [[ -f $OUTPUTNAME ]]; then
+    printf "File \"$OUTPUTNAME\" already exists. Override? [y/n]"
+    read k
+    if [[ "$k" != 'y' ]] && [[ "$k" != 'Y' ]]; then
+        exit $ERR_NONE
+    else
+        rm $OUTPUTNAME
+        if [[ $? -ne 0 ]]; then
+            echo "Fail to override file \"$OUTPUTNAME\"."
+            exit $ERR_OPERATION_FAILED
+        fi
+    fi
+fi
+
+# Window geometry
+echo "Please select the window you'd like to record by clicking the mouse in that window."
+XWININFO=$(xwininfo)
+read X < <(awk -F: '/Absolute upper-left X/{print $2}' <<< "$XWININFO")
+read Y < <(awk -F: '/Absolute upper-left Y/{print $2}' <<< "$XWININFO")
+read W < <(awk -F: '/Width/{print $2}' <<< "$XWININFO")
+read H < <(awk -F: '/Height/{print $2}' <<< "$XWININFO")
+
+# Notify the user of recording delay
+notify "Recording will start in $DELAY seconds."
+
+# Actual recording
+sleep $DELAY
+beep
+ffmpeg -video_size ${W}x${H} -framerate $FRAMERATE -f x11grab -i :0.0+${X},${Y} -vf "scale=$SCALE" "$OUTPUTNAME"
+result=$?
+beep
+
+if [[ $result -ne 0 ]]; then
+    notify "Screen record of $OUTPUTNAME failed."
+    exit $ERR_OPERATION_FAILED
+fi
+
+# Convert to gif
+if [[ $OUTPUTGIF -eq 1 ]] && [[ $OUTPUTVIDEO -eq 1 ]]; then
+    $video2gif $OUTPUTNAME
+fi
+
+# Notify the user of end of recording.
+notify "Screen record saved to $OUTPUTNAME"
+
+exit $ERR_NONE

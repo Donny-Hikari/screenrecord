@@ -1,0 +1,59 @@
+#!/bin/bash
+
+TMPPALETTE="/tmp/.~tmp-video2gif-palette.png"
+DEFSCALE="-1:-1"
+
+VIDEOFILE=$1
+OUTFILE=
+OUTPUTSCALE=
+
+print_info() {
+    echo "Video2gif - convert video to gif using ffmpeg"
+    echo "Author: Donny (c) 2018"
+    echo
+}
+
+print_usage() {
+    echo "Usage: $(basename $0) videofile [-o|--output outputfile] [-s|--scale outputscale]"
+}
+
+print_info
+
+shift
+while [[ $# -gt 0 ]]
+do
+    key=$1; shift
+    case $key in
+        -o|--output)
+        next=$1; shift
+        OUTFILE=$next
+        ;;
+        -s|--scale)
+        next=$1; shift
+        OUTPUTSCALE=$next
+        ;;
+        *)
+        echo "Unrecognized parameters $key."
+        print_usage
+        exit
+        ;;
+    esac
+done
+
+if [[ -z $VIDEOFILE ]]; then
+    print_usage
+    exit
+fi
+
+if [[ -z $OUTFILE ]]; then
+    OUTFILE=${VIDEOFILE%.*}.gif
+fi
+
+if [[ -z $OUTPUTSCALE ]]; then
+    OUTPUTSCALE=$DEFSCALE
+fi
+
+ffmpeg -y -i $VIDEOFILE -vf "scale=$OUTPUTSCALE,palettegen" $TMPPALETTE
+ffmpeg -y -i $VIDEOFILE -i $TMPPALETTE -filter_complex "scale=$OUTPUTSCALE,paletteuse" $OUTFILE
+
+rm -f $TMPPALETTE
