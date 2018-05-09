@@ -21,7 +21,7 @@ HELP_HINT="Try -h or --help to get help infomation."
 UINOTIFY=1
 # Delay before starting
 DELAY=3
-# Recording duration - infinite until user press 'q'
+# Recording duration; default: 0 - keep recording until user press 'q'
 DURATION=0
 # Recording frame rate
 FRAMERATE=30
@@ -62,7 +62,7 @@ print_info() {
 }
 
 print_usage() {
-    PRINT_FORMAT="%-25s%s\n"
+    PRINT_FORMAT="%-26s%s\n"
 
     echo "Usage: $(basename $0) [OPTIONS]"
     
@@ -71,22 +71,22 @@ print_usage() {
     printf $PRINT_FORMAT "-h|--help"    "Print help options"
 
     echo ""
-    echo "Record options:"
+    echo "Behaviors options:"
+    printf $PRINT_FORMAT "--delay number"            "delay \"number\" seconds before recording"
+    printf $PRINT_FORMAT "-m|--capture-mode mode"    "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\" "
+    printf $PRINT_FORMAT "--noui"                    "suppress ui output, which means not using notify-send"
+    printf $PRINT_FORMAT "--preview"                 "preview the parameters only, not doing actual recording"
+
+    echo ""
+    echo "Recording options:"
     printf $PRINT_FORMAT "-o|--output filename"     "set the output filename"
-    printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/gif"
-    printf $PRINT_FORMAT "--delay number"           "delay \"number\" seconds before recording"
+    printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/gif; 0 means keep recording until user press 'q'"
     printf $PRINT_FORMAT "-f|--framerate number"    "set the recording frame rate"
     printf $PRINT_FORMAT "-s|scale widthxheight"    "scale the recording output to widthxheight"
     printf $PRINT_FORMAT "--gif"                    "output gif"
     printf $PRINT_FORMAT "--video"                  "output video; by default a video will be produced if neither --gif nor --video option is given"
-    printf $PRINT_FORMAT "--options-in"              "set options placed before ffmpeg input stream when recording"
-    printf $PRINT_FORMAT "--options-out"             "set options placed before ffmpeg output stream when recording"
-    printf $PRINT_FORMAT "--capture-mode"            "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\" "
-
-    echo ""
-    echo "Behavior options:"
-    printf $PRINT_FORMAT "--noui"       "suppress ui output, which means not using notify-send"
-    printf $PRINT_FORMAT "--preview"    "preview the parameters only, not doing actual recording"
+    printf $PRINT_FORMAT "--options-in"             "set options placed before ffmpeg input stream when recording"
+    printf $PRINT_FORMAT "--options-out"            "set options placed before ffmpeg output stream when recording"
 
     echo ""
     return
@@ -95,17 +95,21 @@ print_usage() {
 print_variables() {
     echo "====== PREVIEW PARAMETERS ======"
     echo "Delay: $DELAY"
+    echo "Capture Mode: $CAPTUREMODE"
+    echo "UI Notify: $UINOTIFY"
+    echo "Preview: $PREVIEWONLY"
+    echo ""
+    echo "Output Filename: \"$OUTPUTNAME\""
     echo "Duration: $DURATION"
     echo "Framerate: $FRAMERATE"
     echo "Scale: $SCALE"
-    echo "Output Filename: \"$OUTPUTNAME\""
     echo "Output Gif: $OUTPUTGIF"
     echo "Output Video: $OUTPUTVIDEO"
     echo "In Options: $INOPTIONS"
     echo "Out Options: $OUTOPTIONS"
-    echo "Capture Mode: $CAPTUREMODE"
-    echo "UI Notify: $UINOTIFY"
+    echo ""
     echo "Recoding Geometry: ${W}x${H}+${X}+${Y} (WxH+X+Y)"
+    echo ""
 }
 
 # Sound notification to let one know when recording is about to start (and ends)
@@ -129,6 +133,37 @@ while [[ $# -gt 0 ]]
 do
     key=$1; ALLARGUMENTS+=($1); shift;
     case $key in
+        # HELP OPTIONS
+        -h|--help)
+        print_usage
+        exit $ERR_NONE
+        ;;
+
+        # BEHAVIORS OPTIONS
+        --delay)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ $next -ge 0 ]]; then
+            DELAY=$next
+        fi
+        ;;
+        --capture-mode)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "--capture-mode parameter missing"
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            CAPTUREMODE=$next
+        fi
+        ;;
+        --noui)
+        UINOTIFY=0
+        ;;
+        --preview)
+        PREVIEWONLY=1
+        ;;
+
+        # RECORDING OPTIONS
         -o|--output)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
@@ -148,12 +183,6 @@ do
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ $next -gt 0 ]]; then
             DURATION=$next
-        fi
-        ;;
-        --delay)
-        next=$1; ALLARGUMENTS+=($1); shift;
-        if [[ $next -ge 0 ]]; then
-            DELAY=$next
         fi
         ;;
         -f|--framerate)
@@ -197,26 +226,6 @@ do
         else
             OUTOPTIONS=$next
         fi
-        ;;
-        --capture-mode)
-        next=$1; ALLARGUMENTS+=($1); shift;
-        if [[ -z $next ]]; then
-            echo "--capture-mode parameter missing"
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
-        else
-            CAPTUREMODE=$next
-        fi
-        ;;
-        --noui)
-        UINOTIFY=0
-        ;;
-        --preview)
-        PREVIEWONLY=1
-        ;;
-        -h|--help)
-        print_usage
-        exit $ERR_NONE
         ;;
         *)
         echo "Unrecognized parameter: $key."
@@ -278,6 +287,12 @@ if [[ $PREVIEWONLY -eq 1 ]]; then
     exit $ERR_NONE
 fi
 
+if [[ $DURATION -eq 0 ]]; then
+    DURATION=
+else
+    DURATION="-t $DURATION"
+fi
+
 # Check file existance
 if [[ -f $OUTPUTNAME ]]; then
     printf "File \"$OUTPUTNAME\" already exists. Override? [y/n]"
@@ -295,11 +310,12 @@ fi
 
 # Notify the user of recording delay
 notify "Recording will start in $DELAY seconds."
+echo ""
 
 # Actual recording
 sleep $DELAY
 beep
-ffmpeg -video_size ${W}x${H} -framerate $FRAMERATE -f x11grab $INOPTIONS -i :0.0+${X},${Y} -vf "scale=$SCALE" $OUTOPTIONS "$OUTPUTNAME"
+ffmpeg -video_size ${W}x${H} -framerate $FRAMERATE -f x11grab $INOPTIONS -i :0.0+${X},${Y} $DURATION -vf "scale=$SCALE" $OUTOPTIONS "$OUTPUTNAME"
 result=$?
 beep
 
