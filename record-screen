@@ -25,10 +25,18 @@ ERRINFO[$ERR_WRONG_PARAMETERS]="Wrong parameters"
 
 HELP_HINT="Try -h or --help to get help infomation."
 
-# Whether to display ui notification or not
-UINOTIFY=1
 # Delay before starting
 DELAY=3
+# Capture mode, one of "window"|"screen"|WxH+X+Y; default: "window"
+CAPTUREMODE="window"
+# Whether to display ui notification or not
+UINOTIFY=1
+# Preview the settings only. Not doing actual recording
+PREVIEWONLY=0
+# Config filename, settings in the config file will be loaded,
+# but covered by the new parameters given
+CONFIGFILE=
+
 # Recording duration; default: 0 - keep recording until user press 'q'
 DURATION=0
 # Recording frame rate
@@ -50,10 +58,6 @@ OUTPUTGIF=0
 INOPTIONS=
 # Options placed before out stream when recording; default: None
 OUTOPTIONS=
-# Capture mode, one of "window"|"screen"|WxH+X+Y; default: "window"
-CAPTUREMODE="window"
-# Preview the settings only. Not doing actual recording
-PREVIEWONLY=0
 
 # Recoding geometry
 X=0
@@ -70,7 +74,7 @@ print_info() {
 }
 
 print_usage() {
-    PRINT_FORMAT="%-26s%s\n"
+    PRINT_FORMAT="%-29s%s\n"
 
     echo "Usage: $(basename $0) [OPTIONS]"
     
@@ -80,10 +84,11 @@ print_usage() {
 
     echo ""
     echo "Behaviors options:"
-    printf $PRINT_FORMAT "--delay number"            "delay \"number\" seconds before recording"
-    printf $PRINT_FORMAT "-m|--capture-mode mode"    "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\""
-    printf $PRINT_FORMAT "--noui"                    "suppress ui output, which means not using notify-send"
-    printf $PRINT_FORMAT "--preview"                 "preview the parameters only, not doing actual recording"
+    printf $PRINT_FORMAT "--delay number"               "delay \"number\" seconds before recording"
+    printf $PRINT_FORMAT "-m|--capture-mode mode"       "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\""
+    printf $PRINT_FORMAT "--noui"                       "suppress ui output, which means not using notify-send"
+    printf $PRINT_FORMAT "--preview"                    "preview the parameters only, not doing actual recording"
+    printf $PRINT_FORMAT "-c|--config-file filename"    "set config file; settings in the config file will be loaded, but covered by the new parameters given."
 
     echo ""
     echo "Recording options:"
@@ -106,6 +111,7 @@ print_variables() {
     echo "Capture Mode: $CAPTUREMODE"
     echo "UI Notify: $UINOTIFY"
     echo "Preview: $PREVIEWONLY"
+    echo "Config filename: $CONFIGFILE"
     echo ""
     echo "Output Filename: \"$OUTPUTNAME\""
     echo "Duration: $DURATION"
@@ -113,8 +119,8 @@ print_variables() {
     echo "Scale: $SCALE"
     echo "Output Gif: $OUTPUTGIF"
     echo "Output Video: $OUTPUTVIDEO"
-    echo "In Options: $INOPTIONS"
-    echo "Out Options: $OUTOPTIONS"
+    echo "Input Stream Options: $INOPTIONS"
+    echo "Output Stream Options: $OUTOPTIONS"
     echo ""
     echo "Recoding Geometry: ${W}x${H}+${X}+${Y} (WxH+X+Y)"
     echo ""
@@ -154,10 +160,43 @@ optionsError() {
 print_info
 
 # Translate arguments
-ALLARGUMENTS=()
-while [[ $# -gt 0 ]]
+declare -a ALLARGUMENTS
+declare -i index
+ALLARGUMENTS=("$@")
+index=0
+for key in "${ALLARGUMENTS[@]}"
 do
-    key=$1; ALLARGUMENTS+=($1); shift;
+    if [[ "$key" == "-c" ]] || [[ "$key" == "--config-file" ]]; then
+        CONFIGFILE="${ALLARGUMENTS[$((index+1))]}"
+        ALLARGUMENTS=("${ALLARGUMENTS[@]:0:$index}" "${ALLARGUMENTS[@]:$((index+2))}")
+        if [[ -z $CONFIGFILE ]]; then
+            optionsError "--config-file" $ERR_MISSING_PARAMETERS
+        else
+            if ! [[ -f $CONFIGFILE ]]; then
+                optionsError "--config-file" $ERR_WRONG_PARAMETERS "File \"$CONFIGFILE\" does not exist."
+            fi
+            while read -r line || [[ -n "$line" ]]; do
+                read key < <( grep -Eo '^[[:alpha:][:digit:]-]*' <<< $line )
+                options="${line:$((${#key}+1))}"
+                # get rid of possible leading and tailing \"
+                read options < <( sed -e 's/^\"\(.*\)\"$/\1/' <<< $options )
+                key="--$key"
+                if [[ -z $options ]]; then
+                    ALLARGUMENTS=($key "${ALLARGUMENTS[@]}")
+                else
+                    ALLARGUMENTS=($key "$options" "${ALLARGUMENTS[@]}")
+                fi
+            done < "$CONFIGFILE"
+        fi
+        break
+    fi
+    index+=1
+done
+
+index=0
+while [[ $index -lt ${#ALLARGUMENTS[@]} ]]
+do
+    key="${ALLARGUMENTS[$index]}"; index+=1
     case $key in
         # HELP OPTIONS
         -h|--help)
@@ -167,7 +206,7 @@ do
 
         # BEHAVIORS OPTIONS
         --delay)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         isInteger $next
         if [[ $? -eq 0 ]]; then # not integer
             optionsError "--delay" $ERR_WRONG_PARAMETERS "A positive integer needed."
@@ -178,7 +217,7 @@ do
         DELAY=$next
         ;;
         -m|--capture-mode)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ -z $next ]]; then
             optionsError "--capture-mode" $ERR_MISSING_PARAMETERS
         else
@@ -194,7 +233,7 @@ do
 
         # RECORDING OPTIONS
         -o|--output)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ -z $next ]]; then
             optionsError "--output" $ERR_MISSING_PARAMETERS "An output filename needed."
         else
@@ -207,19 +246,19 @@ do
         fi
         ;;
         -d|--duration)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ $next -gt 0 ]]; then
             DURATION=$next
         fi
         ;;
         -f|--framerate)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ $next -gt 0 ]]; then
             FRAMERATE=$next
         fi
         ;;
         -s|--scale)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ -z $next ]]; then
             optionsError "--scale" $ERR_MISSING_PARAMETERS "A scale rate needed."
         else
@@ -233,7 +272,7 @@ do
         OUTPUTVIDEO=1
         ;;
         --options-in)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ -z $next ]]; then
             optionsError "--options-in" $ERR_MISSING_PARAMETERS "Specify options for input stream needed."
         else
@@ -241,7 +280,7 @@ do
         fi
         ;;
         --options-out)
-        next=$1; ALLARGUMENTS+=($1); shift;
+        next="${ALLARGUMENTS[$index]}"; index+=1
         if [[ -z $next ]]; then
             optionsError "--options-out" $ERR_MISSING_PARAMETERS "Specify options for output stream needed."
         else
@@ -249,11 +288,10 @@ do
         fi
         ;;
         *)
-        optionsError $ERR_UNRECOGNIZED_PARAMETERS "$key."
+        optionsError "" $ERR_UNRECOGNIZED_PARAMETERS "$key"
         ;;
     esac
 done
-set -- "${ALLARGUMENTS[@]}" # restore arguments
 
 fileext=${OUTPUTNAME##*.}; if [[ "$fileext" == $OUTPUTNAME ]]; then fileext=""; fi
 if [[ -z $fileext ]]; then

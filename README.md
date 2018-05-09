@@ -5,7 +5,7 @@ Description: A shell script for recording screen under linux.
 
 Author: Donny (c) 2018
 
-Version: 0.1.6
+Version: 0.1.7
 
 Dependencies: ffmpeg, notify-send (optional)
 
@@ -29,6 +29,9 @@ Dependencies: ffmpeg, notify-send (optional)
 
 --preview  
  &ensp; preview the parameters only, not doing actual recording
+
+-c|--config-file filename  
+ &ensp; set config file; settings in the config file will be loaded, but covered by the new parameters given.
 
 ## Recording options:
 
