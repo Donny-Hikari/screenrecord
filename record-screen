@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AUTHOR: Donny (c) 2018
-# NAME: ScreenRecord 0.1.1
+# NAME: ScreenRecord 0.1.5
 # DESCRIPTION:  A shell script for recording screen under linux.
 # DEPENDENCIES:   ffmpeg, notify-send (optional)
 
@@ -57,7 +57,7 @@ print_info() {
     echo ""
     echo "ScreenRecord - Record screen to video or gif file"
     echo "Author: Donny (c) 2018"
-    echo "Version: 0.1.1"
+    echo "Version: 0.1.5"
     echo ""
 }
 
@@ -73,13 +73,13 @@ print_usage() {
     echo ""
     echo "Behaviors options:"
     printf $PRINT_FORMAT "--delay number"            "delay \"number\" seconds before recording"
-    printf $PRINT_FORMAT "-m|--capture-mode mode"    "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\" "
+    printf $PRINT_FORMAT "-m|--capture-mode mode"    "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\""
     printf $PRINT_FORMAT "--noui"                    "suppress ui output, which means not using notify-send"
     printf $PRINT_FORMAT "--preview"                 "preview the parameters only, not doing actual recording"
 
     echo ""
     echo "Recording options:"
-    printf $PRINT_FORMAT "-o|--output filename"     "set the output filename"
+    printf $PRINT_FORMAT "-o|--output filename"     "set the output filename; if not extension specified, a mp4 format video will be produced"
     printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/gif; 0 means keep recording until user press 'q'"
     printf $PRINT_FORMAT "-f|--framerate number"    "set the recording frame rate"
     printf $PRINT_FORMAT "-s|scale widthxheight"    "scale the recording output to widthxheight"
@@ -146,7 +146,7 @@ do
             DELAY=$next
         fi
         ;;
-        --capture-mode)
+        -m|--capture-mode)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
             echo "--capture-mode parameter missing"

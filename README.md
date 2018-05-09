@@ -5,7 +5,7 @@ Description: A shell script for recording screen under linux.
 
 Author: Donny (c) 2018
 
-Version: 0.1.1
+Version: 0.1.5
 
 Dependencies: ffmpeg, notify-send (optional)
 
@@ -16,16 +16,27 @@ Dependencies: ffmpeg, notify-send (optional)
 -h|--help  
  &ensp; Print help options
 
-## Record options:
+## Behaviors options:
+
+--delay number  
+ &ensp; delay \"number\" seconds before recording
+
+-m|--capture-mode mode  
+ &ensp; set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\" 
+
+--noui  
+ &ensp; suppress ui output, which means not using notify-send
+
+--preview  
+ &ensp; preview the parameters only, not doing actual recording
+
+## Recording options:
 
 -o|--output filename  
  &ensp; set the output filename
 
 -d|--duration number  
  &ensp; record \"number\" seconds of video/gif
-
---delay number  
- &ensp; delay \"number\" seconds before recording
 
 -f|--framerate number  
  &ensp; set the recording frame rate
@@ -39,13 +50,11 @@ Dependencies: ffmpeg, notify-send (optional)
 --video  
  &ensp; output video; by default a video will be produced if neither --gif nor --video option is given
 
-## Behavior options:
+--options-in  
+ &ensp; set options placed before ffmpeg input stream when recording
 
---noui  
- &ensp; suppress ui output, which means not using notify-send
-
---preview  
- &ensp; preview the parameters only, not doing actual recording
+--options-out  
+ &ensp; set options placed before ffmpeg output stream when recording
 
 # Author
 
