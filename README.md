@@ -5,7 +5,7 @@ Description: A shell script for recording screen under linux.
 
 Author: Donny (c) 2018
 
-Version: 0.1.5
+Version: 0.1.6
 
 Dependencies: ffmpeg, notify-send (optional)
 

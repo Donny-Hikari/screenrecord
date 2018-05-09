@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # AUTHOR: Donny (c) 2018
-# NAME: ScreenRecord 0.1.5
+# NAME: ScreenRecord 0.1.6
 # DESCRIPTION:  A shell script for recording screen under linux.
 # DEPENDENCIES:   ffmpeg, notify-send (optional)
 
@@ -14,6 +14,14 @@ ERR_NONE=0
 ERR_UNRECOGNIZED_PARAMETERS=1
 ERR_MISSING_PARAMETERS=2
 ERR_OPERATION_FAILED=3
+ERR_WRONG_PARAMETERS=4
+
+declare -A ERRINFO
+ERRINFO[$ERR_NONE]=""
+ERRINFO[$ERR_UNRECOGNIZED_PARAMETERS]="Unrecognized parameters"
+ERRINFO[$ERR_MISSING_PARAMETERS]="Missing parameters"
+ERRINFO[$ERR_OPERATION_FAILED]="Operation failed"
+ERRINFO[$ERR_WRONG_PARAMETERS]="Wrong parameters"
 
 HELP_HINT="Try -h or --help to get help infomation."
 
@@ -57,7 +65,7 @@ print_info() {
     echo ""
     echo "ScreenRecord - Record screen to video or gif file"
     echo "Author: Donny (c) 2018"
-    echo "Version: 0.1.5"
+    echo "Version: 0.1.6"
     echo ""
 }
 
@@ -125,6 +133,24 @@ notify() {
     fi
 }
 
+isInteger() {
+    regex='^[0-9]+$'
+    if [[ $1 =~ $regex ]]; then
+        return 1 # is integer
+    else
+        return 0 # not integer
+    fi
+}
+
+# $1: option's name
+# $2: error type
+# $3: error detail
+optionsError() {
+    printf "%s: %s. %s\n" $1 "${ERRINFO[$2]}" "$3"
+    echo $HELP_HINT
+    exit $2
+}
+
 print_info
 
 # Translate arguments
@@ -142,16 +168,19 @@ do
         # BEHAVIORS OPTIONS
         --delay)
         next=$1; ALLARGUMENTS+=($1); shift;
-        if [[ $next -ge 0 ]]; then
-            DELAY=$next
+        isInteger $next
+        if [[ $? -eq 0 ]]; then # not integer
+            optionsError "--delay" $ERR_WRONG_PARAMETERS "A positive integer needed."
         fi
+        if [[ $next -lt 0 ]]; then
+            optionsError "--delay" $ERR_WRONG_PARAMETERS "A positive integer needed."
+        fi
+        DELAY=$next
         ;;
         -m|--capture-mode)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "--capture-mode parameter missing"
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
+            optionsError "--capture-mode" $ERR_MISSING_PARAMETERS
         else
             CAPTUREMODE=$next
         fi
@@ -167,9 +196,7 @@ do
         -o|--output)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "--output filename missing."
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
+            optionsError "--output" $ERR_MISSING_PARAMETERS "An output filename needed."
         else
             OUTPUTNAME=$next
             # If not filename given, use the $DEFNAME
@@ -194,9 +221,7 @@ do
         -s|--scale)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "--scale parameter missing."
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
+            optionsError "--scale" $ERR_MISSING_PARAMETERS "A scale rate needed."
         else
             SCALE=$next
         fi
@@ -210,9 +235,7 @@ do
         --options-in)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "--options-in parameter missing."
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
+            optionsError "--options-in" $ERR_MISSING_PARAMETERS "Specify options for input stream needed."
         else
             INOPTIONS=$next
         fi
@@ -220,17 +243,13 @@ do
         --options-out)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "--options-out parameter missing."
-            echo $HELP_HINT
-            exit $ERR_MISSING_PARAMETERS
+            optionsError "--options-out" $ERR_MISSING_PARAMETERS "Specify options for output stream needed."
         else
             OUTOPTIONS=$next
         fi
         ;;
         *)
-        echo "Unrecognized parameter: $key."
-        echo $HELP_HINT        
-        exit $ERR_UNRECOGNIZED_PARAMETERS
+        optionsError $ERR_UNRECOGNIZED_PARAMETERS "$key."
         ;;
     esac
 done
