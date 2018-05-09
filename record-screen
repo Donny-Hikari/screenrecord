@@ -38,8 +38,20 @@ OUTPUTNAME=$HOME/Pictures/$DEFNAME
 OUTPUTVIDEO=0
 # Whether to output gif file or not
 OUTPUTGIF=0
+# Options placed before in stream when recording; default: None
+INOPTIONS=
+# Options placed before out stream when recording; default: None
+OUTOPTIONS=
+# Capture mode, one of "window"|"screen"|WxH+X+Y; default: "window"
+CAPTUREMODE="window"
 # Preview the settings only. Not doing actual recording
 PREVIEWONLY=0
+
+# Recoding geometry
+X=0
+Y=0
+W=0
+H=0
 
 print_info() {
     echo ""
@@ -67,6 +79,9 @@ print_usage() {
     printf $PRINT_FORMAT "-s|scale widthxheight"    "scale the recording output to widthxheight"
     printf $PRINT_FORMAT "--gif"                    "output gif"
     printf $PRINT_FORMAT "--video"                  "output video; by default a video will be produced if neither --gif nor --video option is given"
+    printf $PRINT_FORMAT "--options-in"              "set options placed before ffmpeg input stream when recording"
+    printf $PRINT_FORMAT "--options-out"             "set options placed before ffmpeg output stream when recording"
+    printf $PRINT_FORMAT "--capture-mode"            "set the capture mode; one of \"window\"|\"screen\"|WxH+X+Y; default: \"Window\" "
 
     echo ""
     echo "Behavior options:"
@@ -78,14 +93,19 @@ print_usage() {
 }
 
 print_variables() {
-    echo "UINOTIFY: $UINOTIFY"
-    echo "DELAY: $DELAY"
-    echo "DURATION: $DURATION"
-    echo "FRAMERATE: $FRAMERATE"
-    echo "SCALE: $SCALE"
-    echo "OUTPUTNAME: \"$OUTPUTNAME\""
-    echo "OUTPUTGIF: $OUTPUTGIF"
-    echo "OUTPUTVIDEO: $OUTPUTVIDEO"
+    echo "====== PREVIEW PARAMETERS ======"
+    echo "Delay: $DELAY"
+    echo "Duration: $DURATION"
+    echo "Framerate: $FRAMERATE"
+    echo "Scale: $SCALE"
+    echo "Output Filename: \"$OUTPUTNAME\""
+    echo "Output Gif: $OUTPUTGIF"
+    echo "Output Video: $OUTPUTVIDEO"
+    echo "In Options: $INOPTIONS"
+    echo "Out Options: $OUTOPTIONS"
+    echo "Capture Mode: $CAPTUREMODE"
+    echo "UI Notify: $UINOTIFY"
+    echo "Recoding Geometry: ${W}x${H}+${X}+${Y} (WxH+X+Y)"
 }
 
 # Sound notification to let one know when recording is about to start (and ends)
@@ -112,7 +132,7 @@ do
         -o|--output)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "Output filename missing."
+            echo "--output filename missing."
             echo $HELP_HINT
             exit $ERR_MISSING_PARAMETERS
         else
@@ -145,7 +165,7 @@ do
         -s|--scale)
         next=$1; ALLARGUMENTS+=($1); shift;
         if [[ -z $next ]]; then
-            echo "Scale parameter missing."
+            echo "--scale parameter missing."
             echo $HELP_HINT
             exit $ERR_MISSING_PARAMETERS
         else
@@ -157,6 +177,36 @@ do
         ;;
         --video)
         OUTPUTVIDEO=1
+        ;;
+        --options-in)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "--options-in parameter missing."
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            INOPTIONS=$next
+        fi
+        ;;
+        --options-out)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "--options-out parameter missing."
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            OUTOPTIONS=$next
+        fi
+        ;;
+        --capture-mode)
+        next=$1; ALLARGUMENTS+=($1); shift;
+        if [[ -z $next ]]; then
+            echo "--capture-mode parameter missing"
+            echo $HELP_HINT
+            exit $ERR_MISSING_PARAMETERS
+        else
+            CAPTUREMODE=$next
+        fi
         ;;
         --noui)
         UINOTIFY=0
@@ -195,11 +245,40 @@ else
 fi
 # End translate arguments
 
+# Determine capture mode
+case $CAPTUREMODE in
+    "Window"|"window")
+    # Window geometry
+    echo "Please select the window you'd like to record by clicking the mouse in that window."
+    echo ""
+    XWININFO=$(xwininfo)
+    read X < <(awk -F: '/Absolute upper-left X/{print $2}' <<< "$XWININFO")
+    read Y < <(awk -F: '/Absolute upper-left Y/{print $2}' <<< "$XWININFO")
+    read W < <(awk -F: '/Width/{print $2}' <<< "$XWININFO")
+    read H < <(awk -F: '/Height/{print $2}' <<< "$XWININFO")
+    ;;
+    "Screen"|"screen")
+    XRANDR=$(xrandr)
+    X=0; Y=0
+    read RESOLUTION < <(grep -Eo 'current [[:digit:]]+ x [[:digit:]]+' <<< "$XRANDR")
+    read W < <(grep -Eo '[[:digit:]]+' <<< "$RESOLUTION" | sed -n '1p')
+    read H < <(grep -Eo '[[:digit:]]+' <<< "$RESOLUTION" | sed -n '2p')
+    ;;
+    *)
+    read X < <(grep -Eo '[[:digit:]]+' <<< "$CAPTUREMODE" | sed -n '3p')
+    read Y < <(grep -Eo '[[:digit:]]+' <<< "$CAPTUREMODE" | sed -n '4p')
+    read W < <(grep -Eo '[[:digit:]]+' <<< "$CAPTUREMODE" | sed -n '1p')
+    read H < <(grep -Eo '[[:digit:]]+' <<< "$CAPTUREMODE" | sed -n '2p')
+    ;;
+esac
+
+# Preview parameters only
 if [[ $PREVIEWONLY -eq 1 ]]; then
     print_variables
     exit $ERR_NONE
 fi
 
+# Check file existance
 if [[ -f $OUTPUTNAME ]]; then
     printf "File \"$OUTPUTNAME\" already exists. Override? [y/n]"
     read k
@@ -214,21 +293,13 @@ if [[ -f $OUTPUTNAME ]]; then
     fi
 fi
 
-# Window geometry
-echo "Please select the window you'd like to record by clicking the mouse in that window."
-XWININFO=$(xwininfo)
-read X < <(awk -F: '/Absolute upper-left X/{print $2}' <<< "$XWININFO")
-read Y < <(awk -F: '/Absolute upper-left Y/{print $2}' <<< "$XWININFO")
-read W < <(awk -F: '/Width/{print $2}' <<< "$XWININFO")
-read H < <(awk -F: '/Height/{print $2}' <<< "$XWININFO")
-
 # Notify the user of recording delay
 notify "Recording will start in $DELAY seconds."
 
 # Actual recording
 sleep $DELAY
 beep
-ffmpeg -video_size ${W}x${H} -framerate $FRAMERATE -f x11grab -i :0.0+${X},${Y} -vf "scale=$SCALE" "$OUTPUTNAME"
+ffmpeg -video_size ${W}x${H} -framerate $FRAMERATE -f x11grab $INOPTIONS -i :0.0+${X},${Y} -vf "scale=$SCALE" $OUTOPTIONS "$OUTPUTNAME"
 result=$?
 beep
 
