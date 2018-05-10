@@ -1,14 +1,12 @@
 #!/bin/bash
 
 # AUTHOR: Donny (c) 2018
-# NAME: ScreenRecord 0.1.6
+# NAME: ScreenRecord 0.1.8
 # DESCRIPTION:  A shell script for recording screen under linux.
 # DEPENDENCIES:   ffmpeg, notify-send (optional)
 
 # App name, display when pushing notification
 APPNAME="ScreenRecord"
-# Video2gif script location
-video2gif="bash $(dirname $(readlink -f $0))/video2gif"
 
 ERR_NONE=0
 ERR_UNRECOGNIZED_PARAMETERS=1
@@ -50,10 +48,10 @@ DEFNAME=ScreenRecord_$TIME.mp4
 # Output filename
 OUTPUTNAME=$HOME/Pictures/$DEFNAME
 # Whether to output video file or not.
-# If both $OUTPUTVIDEO and $OUTPUTGIF are zeros, a video will be outputed by default.
+# If both $OUTPUTVIDEO and $OUTPUTWEBP are zeros, a video will be outputed by default.
 OUTPUTVIDEO=0
-# Whether to output gif file or not
-OUTPUTGIF=0
+# Whether to output webp file or not
+OUTPUTWEBP=0
 # Options placed before in stream when recording; default: None
 INOPTIONS=
 # Options placed before out stream when recording; default: None
@@ -67,9 +65,9 @@ H=0
 
 print_info() {
     echo ""
-    echo "ScreenRecord - Record screen to video or gif file"
+    echo "ScreenRecord - Record screen to video or webp file"
     echo "Author: Donny (c) 2018"
-    echo "Version: 0.1.6"
+    echo "Version: 0.1.8"
     echo ""
 }
 
@@ -93,11 +91,11 @@ print_usage() {
     echo ""
     echo "Recording options:"
     printf $PRINT_FORMAT "-o|--output filename"     "set the output filename; if not extension specified, a mp4 format video will be produced"
-    printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/gif; 0 means keep recording until user press 'q'"
+    printf $PRINT_FORMAT "-d|--duration number"     "record \"number\" seconds of video/webp; 0 means keep recording until user press 'q'"
     printf $PRINT_FORMAT "-f|--framerate number"    "set the recording frame rate"
     printf $PRINT_FORMAT "-s|scale widthxheight"    "scale the recording output to widthxheight"
-    printf $PRINT_FORMAT "--gif"                    "output gif"
-    printf $PRINT_FORMAT "--video"                  "output video; by default a video will be produced if neither --gif nor --video option is given"
+    printf $PRINT_FORMAT "--webp"                    "output webp"
+    printf $PRINT_FORMAT "--video"                  "output video; by default a video will be produced if neither --webp nor --video option is given"
     printf $PRINT_FORMAT "--options-in"             "set options placed before ffmpeg input stream when recording"
     printf $PRINT_FORMAT "--options-out"            "set options placed before ffmpeg output stream when recording"
 
@@ -117,7 +115,7 @@ print_variables() {
     echo "Duration: $DURATION"
     echo "Framerate: $FRAMERATE"
     echo "Scale: $SCALE"
-    echo "Output Gif: $OUTPUTGIF"
+    echo "Output Webp: $OUTPUTWEBP"
     echo "Output Video: $OUTPUTVIDEO"
     echo "Input Stream Options: $INOPTIONS"
     echo "Output Stream Options: $OUTOPTIONS"
@@ -265,8 +263,8 @@ do
             SCALE=$next
         fi
         ;;
-        --gif)
-        OUTPUTGIF=1
+        --webp)
+        OUTPUTWEBP=1
         ;;
         --video)
         OUTPUTVIDEO=1
@@ -295,14 +293,14 @@ done
 
 fileext=${OUTPUTNAME##*.}; if [[ "$fileext" == $OUTPUTNAME ]]; then fileext=""; fi
 if [[ -z $fileext ]]; then
-    if [[ $OUTPUTGIF -eq 1 ]] && [[ $OUTPUTVIDEO -eq 0 ]]; then
-        OUTPUTNAME+=".gif"
+    if [[ $OUTPUTWEBP -eq 1 ]] && [[ $OUTPUTVIDEO -eq 0 ]]; then
+        OUTPUTNAME+=".webp"
     else
         OUTPUTNAME+=".mp4"
         OUTPUTVIDEO=1 # Output video by default
     fi
-elif [[ "$fileext" == "gif" ]]; then
-    OUTPUTGIF=1
+elif [[ "$fileext" == "webp" ]]; then
+    OUTPUTWEBP=1
     if [[ $OUTPUTVIDEO -eq 1 ]]; then
         OUTPUTNAME=${OUTPUTNAME%.*}.mp4
     fi
@@ -381,9 +379,9 @@ if [[ $result -ne 0 ]]; then
     exit $ERR_OPERATION_FAILED
 fi
 
-# Convert to gif
-if [[ $OUTPUTGIF -eq 1 ]] && [[ $OUTPUTVIDEO -eq 1 ]]; then
-    $video2gif $OUTPUTNAME
+# Convert to webp
+if [[ $OUTPUTWEBP -eq 1 ]] && [[ $OUTPUTVIDEO -eq 1 ]]; then
+    ffmpeg -i "$OUTPUTNAME" "${OUTPUTNAME%.*}.webp"
 fi
 
 # Notify the user of end of recording.

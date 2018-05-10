@@ -5,7 +5,7 @@ Description: A shell script for recording screen under linux.
 
 Author: Donny (c) 2018
 
-Version: 0.1.7
+Version: 0.1.8
 
 Dependencies: ffmpeg, notify-send (optional)
 
@@ -39,7 +39,7 @@ Dependencies: ffmpeg, notify-send (optional)
  &ensp; set the output filename
 
 -d|--duration number  
- &ensp; record \"number\" seconds of video/gif
+ &ensp; record \"number\" seconds of video/webp
 
 -f|--framerate number  
  &ensp; set the recording frame rate
@@ -47,11 +47,11 @@ Dependencies: ffmpeg, notify-send (optional)
 -s|scale widthxheight  
  &ensp; scale the recording output to widthxheight
 
---gif  
- &ensp; output gif
+--webp  
+ &ensp; output webp
 
 --video  
- &ensp; output video; by default a video will be produced if neither --gif nor --video option is given
+ &ensp; output video; by default a video will be produced if neither --webp nor --video option is given
 
 --options-in  
  &ensp; set options placed before ffmpeg input stream when recording
